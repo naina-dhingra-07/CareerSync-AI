@@ -1,0 +1,110 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "User account information and career data",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["student", "teacher", "admin"] },
+        "teacherId": { "type": "string", "description": "The UID of the assigned teacher (for students)" },
+        "qualifications": { "type": "string", "description": "Educational qualifications (for teachers)" },
+        "achievements": { "type": "string", "description": "Professional achievements (for teachers)" },
+        "employmentStatus": { "type": "string", "enum": ["employed", "unemployed"] },
+        "companyName": { "type": "string" },
+        "jobRole": { "type": "string" },
+        "skills": { "type": "array", "items": { "type": "string" } },
+        "careerGoals": { "type": "string" },
+        "skillAnalysis": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Resume": {
+      "title": "Resume",
+      "description": "Resume document metadata and AI analysis",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "fileName": { "type": "string" },
+        "fileUrl": { "type": "string" },
+        "extractedText": { "type": "string" },
+        "analysisResult": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "fileName"]
+    },
+    "ChatMessage": {
+      "title": "Chat Message",
+      "description": "Messages in a chat session",
+      "type": "object",
+      "properties": {
+        "chatId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "type": { "type": "string", "enum": ["text", "audio", "file"] },
+        "content": { "type": "string" },
+        "audioUrl": { "type": "string" },
+        "fileUrl": { "type": "string" },
+        "fileName": { "type": "string" },
+        "fileType": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["chatId", "senderId", "receiverId", "participants", "type", "createdAt"]
+    },
+    "JobApplication": {
+      "title": "Job Application",
+      "description": "History of job applications sent by students",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "jobId": { "type": "string" },
+        "jobTitle": { "type": "string" },
+        "company": { "type": "string" },
+        "emailBody": { "type": "string" },
+        "recipientEmail": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "jobId", "jobTitle", "company", "recipientEmail", "createdAt"]
+    },
+    "TeacherRequest": {
+      "title": "Teacher Request",
+      "description": "Requests from students to be assigned to a teacher",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "studentEmail": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "denied"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["studentId", "teacherId", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile documents"
+    },
+    "/resumes/{resumeId}": {
+      "schema": "Resume",
+      "description": "Resume analysis records"
+    },
+    "/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Chat messages"
+    },
+    "/applications/{applicationId}": {
+      "schema": "JobApplication",
+      "description": "Job application history"
+    },
+    "/teacherRequests/{requestId}": {
+      "schema": "TeacherRequest",
+      "description": "Student-teacher assignment requests"
+    }
+  }
+}

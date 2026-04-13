@@ -1,0 +1,187 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (uid)
+    // Fields:
+    //   - uid: string (required)
+    //   - name: string
+    //   - email: string (required)
+    //   - skills: list of strings
+    //   - careerGoals: string
+    //   - skillAnalysis: map
+    //   - createdAt: timestamp
+    //
+    // Collection: resumes
+    // Document ID: resumeId
+    // Fields:
+    //   - userId: string (required)
+    //   - fileName: string (required)
+    //   - fileUrl: string
+    //   - extractedText: string
+    //   - analysisResult: map
+    //   - createdAt: timestamp
+    //
+    // Collection: chats
+    // Document ID: chatId
+    // Subcollection: messages
+    //   - senderId: string (required)
+    //   - receiverId: string (required)
+    //   - text: string (required)
+    //   - timestamp: timestamp (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.uid);
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasRole(role) {
+      return isAuthenticated() && getUserData().role == role;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'student') == 'admin' ||
+          (request.auth.token.email == "nainadhingra281@gmail.com" && request.auth.token.email_verified == true) ||
+          request.auth.token.email.endsWith('@example.com')); // Allow example emails for testing
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidUser(data) {
+      return (data.get('uid', '') is string) && 
+             (data.get('email', '') is string) && 
+             (data.get('role', 'student') in ['student', 'teacher', 'admin']) &&
+             (data.get('name', '') is string && data.get('name', '').size() < 100) &&
+             (data.get('careerGoals', '') is string && data.get('careerGoals', '').size() < 5000) &&
+             (data.get('qualifications', '') is string && data.get('qualifications', '').size() < 2000) &&
+             (data.get('achievements', '') is string && data.get('achievements', '').size() < 2000) &&
+             (data.get('employmentStatus', 'unemployed') in ['employed', 'unemployed']) &&
+             (data.get('companyName', '') is string && data.get('companyName', '').size() < 200) &&
+             (data.get('jobRole', '') is string && data.get('jobRole', '').size() < 200) &&
+             (data.get('teacherId', '') is string);
+    }
+
+    function isValidResume(data) {
+      return (data.get('userId', '') is string) && 
+             (data.get('fileName', '') is string && data.get('fileName', '').size() < 255);
+    }
+
+    function isValidJob(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.company is string && data.company.size() > 0 && data.company.size() < 200 &&
+             data.description is string && data.description.size() < 10000 &&
+             data.companyEmail is string && isValidEmail(data.companyEmail);
+    }
+
+    function isValidMessage(data) {
+      return data.senderId is string &&
+             data.receiverId is string &&
+             data.chatId is string &&
+             (data.get('content', '') is string) &&
+             (data.get('type', 'text') in ['text', 'audio', 'file']) &&
+             data.participants is list &&
+             (data.type != 'file' || (data.get('fileUrl', '') is string && data.get('fileName', '') is string)) &&
+             (data.type != 'audio' || (data.get('audioUrl', '') is string));
+    }
+
+    function isValidTeacherRequest(data) {
+      return data.studentId is string &&
+             data.teacherId is string &&
+             data.status in ['pending', 'approved', 'denied'] &&
+             (data.get('studentName', '') is string && data.get('studentName', '').size() < 100) &&
+             (data.get('studentEmail', '') is string && data.get('studentEmail', '').size() < 200);
+    }
+
+    function isValidApplication(data) {
+      return data.userId is string &&
+             data.jobId is string &&
+             data.jobTitle is string &&
+             data.company is string &&
+             data.recipientEmail is string &&
+             isValidEmail(data.recipientEmail) &&
+             (data.get('emailBody', '') is string && data.get('emailBody', '').size() < 10000);
+    }
+
+    // ===============================================================
+    // Match Blocks
+    // ===============================================================
+
+    // User profiles
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+    }
+
+    // Teacher Requests
+    match /teacherRequests/{requestId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+        request.resource.data.studentId == request.auth.uid;
+      allow update: if isAuthenticated() && 
+        (resource.data.teacherId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && 
+        (resource.data.studentId == request.auth.uid || isAdmin());
+    }
+
+    // Jobs
+    match /jobs/{jobId} {
+      allow read: if true; // Jobs are public
+      allow create: if isAuthenticated() && isValidJob(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+
+    // Resumes
+    match /resumes/{resumeId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Messages
+    match /messages/{messageId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAuthenticated();
+    }
+
+    // Chats metadata
+    match /chats/{chatId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Job Applications
+    match /applications/{applicationId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

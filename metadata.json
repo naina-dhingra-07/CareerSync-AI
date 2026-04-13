@@ -1,0 +1,5 @@
+{
+  "name": "CareerSync AI",
+  "description": "A modern career advisor powered by Gemini AI to help you find your dream job.",
+  "requestFramePermissions": ["microphone"]
+}
