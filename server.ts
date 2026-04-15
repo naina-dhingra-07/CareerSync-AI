@@ -1,5 +1,11 @@
-import dotenv from 'dotenv';
-dotenv.config();
+import 'dotenv/config';
+
+// Debug logging for environment variables (runs after imports, but env is already loaded)
+if (!process.env.GEMINI_API_KEY) {
+  console.error('❌ Warning: .env file might not be loaded correctly or GEMINI_API_KEY is missing.');
+} else {
+  console.log('✅ Environment variables loaded successfully');
+}
 
 import './server/firebaseAdmin.js'; // Initialize Firebase Admin first
 
